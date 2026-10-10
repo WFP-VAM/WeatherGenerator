@@ -1,0 +1,129 @@
+# (C) Copyright 2025 WeatherGenerator contributors.
+#
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# In applying this licence, ECMWF does not waive the privileges and immunities
+# granted to it by virtue of its status as an intergovernmental organisation
+# nor does it submit to any jurisdiction.
+
+# CHIRPS v3 daily precipitation: the single output stream of the decoder trained on the
+# frozen daily ERA5 N320 model hoya9ez6. Read at native 0.05 degree resolution by
+# DataReaderChirps (packages/readers_extra/.../data_reader_chirps.py).
+
+CHIRPS :
+  type : chirps
+  # ERA5_in is 0 and ERA5 is 1 in hoya9ez6. The id is also fed to the decoder as a plain
+  # number next to the target coordinates, so it is kept small.
+  stream_id : 2
+
+  # Time of day a CHIRPS day is labelled with. A value stamped day D in the stores is the rain
+  # of D 00:00 to D+1 00:00 UTC; hoya9ez6 labels its ERA5 daily mean of day D (hourly states
+  # 00:00 .. 23:00) at D 23:00. The two labels have to be identical, otherwise the streams can
+  # land in different model windows. Checked by scripts_vh/chirps/check_time_alignment.py.
+  daily_anchor : 23:00:00
+
+  # Single field 'band' in the stores, exposed under this channel name.
+  channels : ['tp']
+
+  # Decoder setup: ERA5 goes in, CHIRPS is predicted only.
+  diagnostic : True
+  source : []
+  target : ['tp']
+
+  # No transform: the model is trained on mm/day directly. mean / stdev are the statistics of
+  # the field as it is trained on and must be changed together with `transform`. They are taken
+  # over all valid pixels of every day of the training period 1991-2022 (46.4e9 values), each
+  # pixel counting once, which is how target points are drawn.
+  # Daily rain is heavily skewed: over half of all land values are below 0.1 mm/day, while the
+  # largest values are tens of standard deviations out.
+  # Regenerate with: scripts_vh/chirps/chirps_stats.py --start-year 1991 --end-year 2022
+  transform : null
+  mean  : [2.605484324517578]
+  stdev : [6.747491523097179]
+  # For transform: log1p use instead:
+  # mean  : [0.6202904999245274]
+  # stdev : [0.9498290914151316]
+
+  # The reader returns every valid land pixel of a day (3.97M). This many are drawn at random
+  # per forecast step, afresh for every sample, by the data sampler. 8 steps x 65536 is about
+  # the number of targets of ONE step of the ERA5 stream hoya9ez6 was trained with (542080).
+  max_num_targets : 65536
+
+  loss_weight : 1.0
+  # CHIRPS spans 50N-50S, so cell area varies by ~1.6x across the domain.
+  location_weight : cosine_latitude
+
+  # token_size / tokenize_spacetime affect source tokenization only, so they are inert for a
+  # target-only stream; kept at the values of hoya9ez6's ERA5 output stream.
+  token_size : 512
+  tokenize_spacetime : False
+
+  # The stores are read in place from another user's project directory (absolute paths).
+  # One store per year, one reader per store; stores outside a run's dates return nothing.
+  filenames : [
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1981.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1982.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1983.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1984.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1985.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1986.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1987.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1988.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1989.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1990.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1991.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1992.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1993.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1994.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1995.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1996.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1997.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1998.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_1999.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2000.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2001.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2002.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2003.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2004.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2005.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2006.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2007.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2008.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2009.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2010.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2011.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2012.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2013.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2014.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2015.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2016.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2017.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2018.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2019.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2020.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2021.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2022.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2023.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2024.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2025.zarr',
+    '/e/project1/e-ext-2025e01-128/bender3/data/chirpsv3/chirpsv3_2026.zarr',
+    ]
+
+  # Decoder head: new modules, trained from scratch. Same geometry as the ERA5 output stream
+  # of hoya9ez6.
+  embed :
+    net : transformer
+    num_tokens : 1
+    num_heads : 4
+    dim_embed : 512
+    num_blocks : 2
+  embed_target_coords :
+    net : linear
+    dim_embed : 512
+  target_readout :
+    num_layers : 2
+    num_heads : 4
+  pred_head :
+    ens_size : 1
+    num_layers : 1

@@ -1,0 +1,168 @@
+# (C) Copyright 2025 WeatherGenerator contributors.
+#
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# In applying this licence, ECMWF does not waive the privileges and immunities
+# granted to it by virtue of its status as an intergovernmental organisation
+# nor does it submit to any jurisdiction.
+
+# CHIRPS precipitation decoder on the frozen daily ERA5 N320 model hoya9ez6.
+#
+# This file is an overlay: it is merged over the stored config of hoya9ez6, so everything not
+# set here (model architecture, test config, ...) is that of hoya9ez6. Launch with
+#   train_continue --from-run-id hoya9ez6 --config config/config_chirps_decoder_hoya9ez6.yml
+#
+# Time: windows of 24 h starting at 00 UTC, as in hoya9ez6. A sample takes the ERA5 daily mean
+# of day D as input and predicts the CHIRPS totals of the days D+1 .. D+8.
+
+# Everything taken from hoya9ez6 is frozen: encoder and forecast engine. Only the modules of the
+# new CHIRPS stream are trained (12.3 M of 806 M parameters). The ERA5 decoder of hoya9ez6 is
+# not part of this model, see streams/chirps_decoder_hoya9ez6/era5_out.yml.
+freeze_modules: ".*global.*|.*local.*|.*adapter.*|.*q_cells.*|.*latent.*|.*ERA5.*|.*forecast.*"
+load_chkpt: {}
+
+# Train-only latent noise of the forecast engine (1e-4 in hoya9ez6), set to 0 so that the frozen
+# model hands the decoder the same latent every time a day is visited.
+fe_impute_latent_noise_std: 0.0
+
+#####################################
+
+streams_directory: "./config/streams/chirps_decoder_hoya9ez6/"
+streams: ???
+
+general:
+
+  # mutable parameters
+  istep: 0
+  rank: ???
+  world_size: ???
+
+  multiprocessing_method: "fork"
+
+  desc: "chirps_decoder_from_hoya9ez6_no_transform_1991"
+  run_id: ???
+  run_history: []
+
+# logging frequency in the training loop (in number of batches)
+train_logging:
+  terminal: 10
+  metrics: 20
+  checkpoint: 250
+
+# parameters for data loading
+data_loading :
+
+  num_workers: 6
+  rng_seed: ???
+  repeat_data_in_mini_epoch : False
+
+
+# config for training
+training_config:
+
+  # training_mode: "masking", "student_teacher", "latent_loss"
+  training_mode: ["masking"]
+
+  num_mini_epochs: 16
+  samples_per_mini_epoch: 4096
+  shuffle: True
+
+  # CHIRPS years 1991-2022, within the training period of hoya9ez6 (1979-2022). Note that the
+  # CHIRPS fields up to 1997 show straight seams over Central Asia (faint in 1998, gone from
+  # 1999); see plots_vh/chirps_qc/.
+  start_date: 1991-01-01T00:00
+  end_date: 2022-12-31T00:00
+
+  # as hoya9ez6; start dates have to stay at 00 UTC
+  time_window_step: 24:00:00
+  time_window_len: 24:00:00
+
+  # Effective peak is lr_max * sqrt(batch_size * world_size). policy_decay must equal
+  # policy_warmup (scheduler asserts).
+  learning_rate_scheduling :
+    lr_start: 1e-6
+    lr_max: 1e-4
+    lr_final_decay: 2e-6
+    lr_final: 0.0
+    num_steps_warmup: 256
+    num_steps_cooldown: 512
+    policy_warmup: "cosine"
+    policy_decay: "cosine"
+    policy_cooldown: "linear"
+    parallel_scaling_policy: "sqrt"
+
+  optimizer:
+    grad_clip: 1.0
+    weight_decay: 0.1
+    log_grad_norms: False
+    adamw :
+      # parameters are scaled by number of DDP workers
+      beta1 : 0.98125 # == 0.85 on 2 nodes x 4 gpus
+      beta2 : 0.9875  # == 0.90 on 2 nodes x 4 gpus
+      eps : 2e-08
+
+  # MSE on the only trained output stream (CHIRPS), on normalized mm/day (no transform).
+  losses:
+    physical:
+      type: LossPhysical
+      loss_fcts:
+        mse: {}
+
+  model_input: {
+    "forecasting" : {
+      # masking strategy: "random", "healpix", "forecast"
+      masking_strategy: "forecast",
+      },
+    }
+
+  # as the fine-tuning of hoya9ez6: forecast days 1 .. 8, no target on the input day
+  forecast :
+      time_step: 24:00:00
+      offset: 1
+      num_steps: 8
+      policy: "fixed"
+
+
+# validation config; full validation config is merge of training and validation config
+validation_config:
+
+  # With shuffle off these are the first 128 input days of the period below
+  # (2023-06-02 .. 2023-10-07).
+  samples_per_mini_epoch: 128
+  shuffle: False
+
+  # Not seen by hoya9ez6 during training. Contains the test period inherited from hoya9ez6
+  # (2023-06-01 .. 2023-08-30).
+  start_date: 2023-06-01T00:00
+  end_date: 2023-12-31T00:00
+
+  # whether to track the exponential moving average of weights for validation
+  validate_with_ema:
+    enabled : True
+    ema_ramp_up_ratio: 0.09
+    ema_halflife_in_thousands: 600
+
+  # parameters for validation samples that are written to disk
+  output : {
+    # number of samples that are written
+    num_samples: 0,
+    # write samples in normalized model space
+    normalized_samples: False,
+    # output streams to write; default all
+    streams: null,
+    }
+
+  # Run validation before training starts: the validation DataLoader spawns its own
+  # data_loading.num_workers processes when validation first runs, so this moves the
+  # peak-memory moment to minute one.
+  validate_before_training: True
+
+
+# test config: inherited from hoya9ez6 (2023-06-01 .. 2023-08-30)
+
+wgtags:
+  org: null
+  issue: null
+  exp: chirps_decoder
+  grid: null
