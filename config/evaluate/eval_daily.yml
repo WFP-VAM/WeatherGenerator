@@ -1,0 +1,60 @@
+
+# optional: if commented out all is taken care of by the default settings
+# NB. global options apply to all run_ids 
+global_plotting_options:
+  regions: ["global"]
+  # regions: ["global", "tropics", "nhem", "shem", "europe"]
+  image_format : "png" #options: "png", "pdf", "svg", "eps", "jpg" ..
+  animation_format: "mp4"
+  dpi_val : 300
+  fps: 2
+
+evaluation:
+  metrics: ["rmse"]
+  summary_plots : true
+  ratio_plots : true
+  heat_maps : false
+  # Absolute on purpose: launch-slurm.py runs the job from a temporary copy of the repo, so a
+  # relative path would put the score plots into that copy.
+  summary_dir: "/e/project1/e-ext-2025e01-128/hertel2/code/WeatherGenerator/plots_vh/"
+  plot_ensemble: "members" #supported: false, "std", "minmax", "members"
+  plot_score_maps: false #plot scores on a 2D maps. it slows down score computation
+  plot_score_animations: false #plot animations of score maps across forecast steps. it slows down score computation
+  print_summary: false #print out score values on screen. it can be verbose
+  log_scale: false
+  add_grid: false
+  score_cards: false
+  bar_plots: false
+  #agg_dims: ["ipoint"] #----> NOTE: advanced! Handle with care. This will average the scores across the specified list of dimensions. Supported dimensions: "ipoint", "sample", "forecast_step", "ensemble". Use with caution, as it can hide important details about the model performance. 
+
+
+default_streams:
+  ERA5:
+    regions: ["global"]
+    channels: ["2t", "10u", "10v", "z_500", "t_850", "u_850", "v_850", "q_850"]
+    evaluation:
+      forecast_step: "all"
+      # NB. Compute node only. Each run holds 260 inits x 10 steps on the N320 grid (542080
+      # points), and scoring loads target + prediction of every requested sample into RAM before
+      # anything is written: ~90 GB for these 8 channels, ~400 GB at peak while the 10 steps are
+      # scored in parallel. A login node OOM-kills that; a booster node (858 GB) has room.
+      sample: "all"
+      ensemble: "all" #supported: "all", "mean", [0,1,2]
+    plotting:
+      sample: [0]
+      forecast_step: "all" #supported: "all", [1,2,3,...], "1-50" (equivalent of [1,2,3,...50])
+      plot_maps: true
+      plot_bias: true
+      plot_target: true
+      plot_histograms: false
+      plot_animations: true
+      plot_timeseries: false
+
+
+run_ids :
+
+  glxqg03q:
+    label: "ERA5 N320: 24h in, 24h out"
+
+  i12ofe0a:
+    label: "ERA5 N320: 6h in, 24h out"
