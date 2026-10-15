@@ -41,14 +41,15 @@ CHIRPS :
   transform : null
   mean  : [2.605484324517578]
   stdev : [6.747491523097179]
-  # For transform: log1p use instead:
+  # For transform, use instead:
+  # transform : log1p
   # mean  : [0.6202904999245274]
   # stdev : [0.9498290914151316]
 
   # The reader returns every valid land pixel of a day (3.97M). This many are drawn at random
   # per forecast step, afresh for every sample, by the data sampler. 8 steps x 65536 is about
   # the number of targets of ONE step of the ERA5 stream hoya9ez6 was trained with (542080).
-  max_num_targets : 65536
+  max_num_targets : -1
 
   loss_weight : 1.0
   # CHIRPS spans 50N-50S, so cell area varies by ~1.6x across the domain.
