@@ -1,0 +1,56 @@
+# SYNOP wind direction: direction in degrees (qd4qder4) vs sin/cos encoding (hl5h2suy, obs_wind
+# reader). 10dd is derived per point (sin/cos or degrees -> degrees in [0, 360)) and the prediction
+# is stored relative to the target, so rmse / mae / bias are angular errors in degrees that wrap
+# at 360 (packages/evaluate/.../utils/derived_channels.py). Both runs: same test period
+# (2023-06-01 to 2023-08-31), 40 forecast steps.
+# NB. global options apply to all run_ids
+global_plotting_options:
+  regions: ["global"]
+  image_format : "png" #options: "png", "pdf", "svg", "eps", "jpg" ..
+  animation_format: "mp4"
+  dpi_val : 300
+  fps: 8
+
+evaluation:
+  metrics: ["rmse", "mae", "bias"]
+  summary_plots : true
+  ratio_plots : true
+  baseline: qd4qder4
+  heat_maps : false
+  # absolute: the Slurm evaluation runs from a temporary copy of the repo
+  summary_dir: "/e/project1/e-ext-2025e01-128/hertel2/code/WeatherGenerator/plots_vh/"
+  plot_ensemble: "members" #supported: false, "std", "minmax", "members"
+  # Keep False for SYNOP: score maps are gated on is_gridded_data, so they produce
+  # nothing for scatter data, and setting True forces a full data reload even when
+  # the scores are already on disk.
+  plot_score_maps: False #plot scores on a 2D maps. it slows down score computation
+  plot_score_animations: False #plot animations of score maps across forecast steps. it slows down score computation
+  print_summary: false #print out score values on screen. it can be verbose
+  log_scale: false
+  add_grid: false
+  score_cards: false
+  bar_plots: false
+
+default_streams:
+  SYNOP:
+    # NB. must be an explicit list rather than "all": derived channels (10dd) are only added
+    # when the requested set differs from what the zarr has. Channels a run does not have
+    # are dropped for that run (the sin/cos pair for qd4qder4).
+    channels: ["obsvalue_temperature", "obsvalue_station_level_pressure", "obsvalue_wind_speed",
+               "obsvalue_wind_direction_sin", "obsvalue_wind_direction_cos", "10dd"]
+    evaluation:
+      forecast_step: "all"
+      sample: "all"
+      ensemble: "all" #supported: "all", "mean", [0,1,2]
+    # No per-sample plots: maps of 10dd would show the prediction relative to the target
+    # (values outside [0, 360)), and qd4qder4's maps already exist. To get them, add the
+    # plotting block of eval_synop.yml (synop-eval branch) here.
+
+run_ids :
+  qd4qder4:
+    label: "Temporal JEPA, wind direction in degrees"
+    color: C2
+
+  hl5h2suy:
+    label: "Temporal JEPA, wind direction as sin/cos"
+    color: C3
