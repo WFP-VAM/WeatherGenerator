@@ -10,8 +10,10 @@
 # CHIRPS precipitation decoder on the frozen daily ERA5 N320 model hoya9ez6.
 #
 # This file is an overlay: it is merged over the stored config of hoya9ez6, so everything not
-# set here (model architecture, test config, ...) is that of hoya9ez6. Launch with
-#   train_continue --from-run-id hoya9ez6 --config config/config_chirps_decoder_hoya9ez6.yml
+# set here (model architecture, test config, ...) is that of hoya9ez6. Launch from
+# code/WeatherGenerator on branch vhertel/chirps-decoder (CHIRPS reader, FSDP loading fix):
+#   ../WeatherGenerator-private/hpc/launch-slurm.py --from-run-id hoya9ez6 --wgen-dir . --nodes 2 \
+#     --config config/config_chirps_decoder_hoya9ez6.yml
 #
 # Time: windows of 24 h starting at 00 UTC, as in hoya9ez6. A sample takes the ERA5 daily mean
 # of day D as input and predicts the CHIRPS totals of the days D+1 .. D+8.
