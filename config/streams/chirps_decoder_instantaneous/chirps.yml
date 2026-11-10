@@ -42,7 +42,7 @@ CHIRPS :
   # transform : log1p
   # mean  : [0.6202904999245274]
   # stdev : [0.9498290914151316]
-  # Without transform, use instead (and change desc in config_chirps_decoder_emgqf93u.yml):
+  # Without transform, use instead (and change desc in config_chirps_decoder_instantaneous.yml):
   transform : null
   mean  : [2.605484324517578]
   stdev : [6.747491523097179]

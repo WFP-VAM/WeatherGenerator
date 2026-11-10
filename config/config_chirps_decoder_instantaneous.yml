@@ -7,30 +7,36 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-# CHIRPS precipitation decoder on the frozen daily ERA5 N320 model hoya9ez6.
+# CHIRPS precipitation decoder on the frozen ERA5 N320 model emgqf93u.
+# Transform: set in streams/chirps_decoder_instantaneous/chirps.yml (log1p, or none with the other
+# statistics given there); change `desc` below with it.
 #
-# This file is an overlay: it is merged over the stored config of hoya9ez6, so everything not
-# set here (model architecture, test config, ...) is that of hoya9ez6. Launch from
+# emgqf93u is hoya9ez6's twin with instantaneous instead of daily-mean ERA5 input: its stored
+# config differs from hoya9ez6's only in the ERA5_in stream. Everything else here is as in the
+# CHIRPS runs on hoya9ez6 (o3z4t233, dmdh2cjg), so the two base models can be compared directly.
+#
+# This file is an overlay: it is merged over the stored config of emgqf93u, so everything not
+# set here (model architecture, test config, ...) is that of emgqf93u. Launch from
 # code/WeatherGenerator on branch vhertel/chirps-decoder (CHIRPS reader, FSDP loading fix):
-#   ../WeatherGenerator-private/hpc/launch-slurm.py --from-run-id hoya9ez6 --wgen-dir . --nodes 2 \
-#     --config config/config_chirps_decoder_hoya9ez6.yml
+#   ../WeatherGenerator-private/hpc/launch-slurm.py --from-run-id emgqf93u --wgen-dir . --nodes 2 \
+#     --config config/config_chirps_decoder_instantaneous.yml
 #
-# Time: windows of 24 h starting at 00 UTC, as in hoya9ez6. A sample takes the ERA5 daily mean
-# of day D as input and predicts the CHIRPS totals of the days D+1 .. D+8.
+# Time: windows of 24 h starting at 00 UTC, as in emgqf93u. A sample takes the ERA5 state of
+# day D 18:00 UTC as input and predicts the CHIRPS totals of the days D+1 .. D+8.
 
-# Everything taken from hoya9ez6 is frozen: encoder and forecast engine. Only the modules of the
-# new CHIRPS stream are trained (12.3 M of 806 M parameters). The ERA5 decoder of hoya9ez6 is
-# not part of this model, see streams/chirps_decoder_hoya9ez6/era5_out.yml.
+# Everything taken from emgqf93u is frozen: encoder and forecast engine. Only the modules of the
+# new CHIRPS stream are trained. The ERA5 decoder of emgqf93u is not part of this model, see
+# streams/chirps_decoder_instantaneous/era5_out.yml.
 freeze_modules: ".*global.*|.*local.*|.*adapter.*|.*q_cells.*|.*latent.*|.*ERA5.*|.*forecast.*"
 load_chkpt: {}
 
-# Train-only latent noise of the forecast engine (1e-4 in hoya9ez6), set to 0 so that the frozen
+# Train-only latent noise of the forecast engine (1e-4 in emgqf93u), set to 0 so that the frozen
 # model hands the decoder the same latent every time a day is visited.
 fe_impute_latent_noise_std: 0.0
 
 #####################################
 
-streams_directory: "./config/streams/chirps_decoder_hoya9ez6/"
+streams_directory: "./config/streams/chirps_decoder_instantaneous/"
 streams: ???
 
 general:
@@ -42,7 +48,8 @@ general:
 
   multiprocessing_method: "fork"
 
-  desc: "chirps_decoder_from_hoya9ez6_no_transform_1991"
+  # chirps_decoder_from_emgqf93u_no_transform_1991 without transform
+  desc: "chirps_decoder_from_emgqf93u_log1p_1991"
   run_id: ???
   run_history: []
 
@@ -70,13 +77,13 @@ training_config:
   samples_per_mini_epoch: 4096
   shuffle: True
 
-  # CHIRPS years 1991-2022, within the training period of hoya9ez6 (1979-2022). Note that the
+  # CHIRPS years 1991-2022, within the training period of emgqf93u (1979-2022). Note that the
   # CHIRPS fields up to 1997 show straight seams over Central Asia (faint in 1998, gone from
   # 1999); see plots_vh/chirps_qc/.
   start_date: 1991-01-01T00:00
   end_date: 2022-12-31T00:00
 
-  # as hoya9ez6; start dates have to stay at 00 UTC
+  # as emgqf93u; start dates have to stay at 00 UTC
   time_window_step: 24:00:00
   time_window_len: 24:00:00
 
@@ -104,7 +111,8 @@ training_config:
       beta2 : 0.9875  # == 0.90 on 2 nodes x 4 gpus
       eps : 2e-08
 
-  # MSE on the only trained output stream (CHIRPS), on normalized mm/day (no transform).
+  # MSE on the only trained output stream (CHIRPS), on normalized log(1 + mm/day), or on
+  # normalized mm/day without transform.
   losses:
     physical:
       type: LossPhysical
@@ -118,7 +126,7 @@ training_config:
       },
     }
 
-  # as the fine-tuning of hoya9ez6: forecast days 1 .. 8, no target on the input day
+  # as the fine-tuning of emgqf93u: forecast days 1 .. 8, no target on the input day
   forecast :
       time_step: 24:00:00
       offset: 1
@@ -134,7 +142,7 @@ validation_config:
   samples_per_mini_epoch: 128
   shuffle: False
 
-  # Not seen by hoya9ez6 during training. Contains the test period inherited from hoya9ez6
+  # Not seen by emgqf93u during training. Contains the test period inherited from emgqf93u
   # (2023-06-01 .. 2023-08-30).
   start_date: 2023-06-01T00:00
   end_date: 2023-12-31T00:00
@@ -161,7 +169,7 @@ validation_config:
   validate_before_training: True
 
 
-# test config: inherited from hoya9ez6 (2023-06-01 .. 2023-08-30)
+# test config: inherited from emgqf93u (2023-06-01 .. 2023-08-30)
 
 wgtags:
   org: null
